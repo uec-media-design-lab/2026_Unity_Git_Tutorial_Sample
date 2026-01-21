@@ -130,6 +130,13 @@ namespace Unity.FPS.Game
         AudioSource m_ContinuousShootAudioSource = null;
         bool m_WantsToShoot = false;
 
+        //以下追記
+        [Header("ManualnReload")]
+        public bool EnableManualReload = true;
+        public KeyCode ReloadKey = KeyCode.R;
+
+
+
         public UnityAction OnShoot;
         public event Action OnShootProcessed;
 
@@ -212,6 +219,31 @@ namespace Unity.FPS.Game
             m_PhysicalAmmoPool.Enqueue(nextShell);
         }
 
+        //以下追記
+        void TryStartManualReload()
+        {
+            if (IsReloading) return;
+            if (IsCharging) return;
+
+            //満タン→何もしない
+            if(GetCurrentAmmo() >= Mathf.FloorToInt(MaxAmmo)) return;
+
+            if(!HasPhysicalBullets)
+            {
+                Reload();
+                return;
+            }
+
+            StartReloadAnimation();
+        }
+
+        //以下追記
+        public void OnReloadAnimationEvent()
+        {
+            Reload();
+        }
+
+
         void PlaySFX(AudioClip sfx) => AudioUtility.CreateSFX(sfx, transform.position, AudioUtility.AudioGroups.WeaponShoot, 0.0f);
 
 
@@ -221,6 +253,10 @@ namespace Unity.FPS.Game
             {
                 m_CurrentAmmo = Mathf.Min(m_CarriedPhysicalBullets, ClipSize);
             }
+            else
+            {
+                m_CurrentAmmo = MaxAmmo;    //追記
+            }
 
             IsReloading = false;
         }
@@ -229,8 +265,17 @@ namespace Unity.FPS.Game
         {
             if (m_CurrentAmmo < m_CarriedPhysicalBullets)
             {
-                GetComponent<Animator>().SetTrigger("Reload");
-                IsReloading = true;
+                var anim = GetComponent<Animator>();
+                if (anim != null)
+                {
+                    anim.SetTrigger("Reload");
+                    IsReloading = true;
+                }
+                else
+                {
+                    //アニメーターが無い場合は即リロード
+                    Reload();
+                }
             }
         }
 
@@ -239,6 +284,17 @@ namespace Unity.FPS.Game
             UpdateAmmo();
             UpdateCharge();
             UpdateContinuousShootSound();
+
+
+           if(EnableManualReload && Input.GetKeyDown(ReloadKey))
+           {
+               TryStartManualReload();
+           }
+
+           
+            
+
+
 
             if (Time.deltaTime > 0)
             {

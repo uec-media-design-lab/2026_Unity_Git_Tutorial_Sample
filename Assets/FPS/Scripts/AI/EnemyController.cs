@@ -84,6 +84,14 @@ namespace Unity.FPS.AI
         [Tooltip("Color of the sphere gizmo representing the detection range")]
         public Color DetectionRangeColor = Color.blue;
 
+
+        // 追加した機能
+        [Header("Split Rate")]
+        [Tooltip("The enemy may split upon death with a given probability.")]
+        public GameObject DivisionObject = null;
+        public float DivisionRate = 0.0f;
+
+
         public UnityAction onAttack;
         public UnityAction onDetectedTarget;
         public UnityAction onLostTarget;
@@ -357,11 +365,30 @@ namespace Unity.FPS.AI
             }
         }
 
+        private void split_player()
+        {
+            // 分裂した敵は通常再分裂しない（デフォルトの分裂率が0のため）
+            var p1 = Instantiate(DivisionObject, this.transform.position + this.transform.right * 1.0f, transform.rotation);
+            var p2 = Instantiate(DivisionObject, this.transform.position - this.transform.right * 1.0f, transform.rotation);
+
+            // 大きさは半分にする
+            p1.transform.localScale = p2.transform.localScale = this.transform.localScale / 2.0f;
+
+            // HPは半分にする
+            float division_health = this.GetComponent<Health>().MaxHealth / 2.0f;
+            p1.GetComponent<Health>().CurrentHealth = p2.GetComponent<Health>().CurrentHealth = division_health;
+        }
+
         void OnDie()
         {
             // spawn a particle system when dying
             var vfx = Instantiate(DeathVfx, DeathVfxSpawnPoint.position, Quaternion.identity);
             Destroy(vfx, 5f);
+
+            if (DivisionObject != null && Random.value < DivisionRate)
+            {
+                split_player();
+            }
 
             // tells the game flow manager to handle the enemy destuction
             m_EnemyManager.UnregisterEnemy(this);
